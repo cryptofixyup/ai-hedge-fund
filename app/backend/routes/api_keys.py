@@ -57,7 +57,7 @@ async def get_api_keys(include_inactive: bool = False, db: Session = Depends(get
 
 @router.get(
     "/{provider}",
-    response_model=ApiKeyResponse,
+    response_model=ApiKeySummaryResponse,
     responses={
         404: {"model": ErrorResponse, "description": "API key not found"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
@@ -70,7 +70,7 @@ async def get_api_key(provider: str, db: Session = Depends(get_db)):
         api_key = repo.get_api_key_by_provider(provider)
         if not api_key:
             raise HTTPException(status_code=404, detail="API key not found")
-        return ApiKeyResponse.from_orm(api_key)
+        return ApiKeySummaryResponse.from_orm(api_key)
     except HTTPException:
         raise
     except Exception as e:
@@ -79,7 +79,7 @@ async def get_api_key(provider: str, db: Session = Depends(get_db)):
 
 @router.put(
     "/{provider}",
-    response_model=ApiKeyResponse,
+    response_model=ApiKeySummaryResponse,
     responses={
         404: {"model": ErrorResponse, "description": "API key not found"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
@@ -97,7 +97,7 @@ async def update_api_key(provider: str, request: ApiKeyUpdateRequest, db: Sessio
         )
         if not api_key:
             raise HTTPException(status_code=404, detail="API key not found")
-        return ApiKeyResponse.from_orm(api_key)
+        return ApiKeySummaryResponse.from_orm(api_key)
     except HTTPException:
         raise
     except Exception as e:
@@ -143,7 +143,12 @@ async def deactivate_api_key(provider: str, db: Session = Depends(get_db)):
             raise HTTPException(status_code=404, detail="API key not found")
         
         # Return the updated key
-        api_key = repo.get_api_key_by_provider(provider)
+        api_key = next(
+            (item for item in repo.get_all_api_keys(include_inactive=True) if item.provider == provider),
+            None,
+        )
+        if not api_key:
+            raise HTTPException(status_code=404, detail="API key not found")
         return ApiKeySummaryResponse.from_orm(api_key)
     except HTTPException:
         raise
@@ -173,7 +178,7 @@ async def bulk_update_api_keys(request: ApiKeyBulkUpdateRequest, db: Session = D
             for key in request.api_keys
         ]
         api_keys = repo.bulk_create_or_update(api_keys_data)
-        return [ApiKeyResponse.from_orm(key) for key in api_keys]
+        return [ApiKeySummaryResponse.from_orm(key) for key in api_keys]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to bulk update API keys: {str(e)}")
 
