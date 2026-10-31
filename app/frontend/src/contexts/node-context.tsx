@@ -23,51 +23,10 @@ export interface AgentNodeData {
   backtestResults?: any[];
 }
 
-// Data structure for the output node data (from complete event)
+// Data structure for output node data emitted by analysis and backtest flows.
 export interface OutputNodeData {
   decisions: Record<string, any>;
   analyst_signals: Record<string, any>;
-  // Portfolio overview data (optional, returned when portfolio analysis is run)
-  portfolio_overview?: {
-    portfolio_overview: {
-      account_value: number;
-      annual_return_percent: number;
-      buying_power: number;
-      cash: number;
-    };
-    holdings: Record<string, {
-      value: number;
-      pending_sell_qty?: number;
-      pending_buy_qty?: number;
-    }>;
-    trade_adjustments: Record<string, {
-      action: 'buy' | 'sell';
-      qty: number;
-      reason: string;
-    }>;
-    top_stocks_to_buy: Record<string, {
-      name: string;
-      price: number;
-      shares_to_buy: number;
-    }>;
-  };
-  // Backtest-specific fields
-  performance_metrics?: {
-    sharpe_ratio?: number;
-    sortino_ratio?: number;
-    max_drawdown?: number;
-    max_drawdown_date?: string;
-    long_short_ratio?: number;
-    gross_exposure?: number;
-    net_exposure?: number;
-  };
-  final_portfolio?: {
-    cash: number;
-    margin_used: number;
-    positions: Record<string, any>;
-  };
-  total_days?: number;
-  // Portfolio dashboard fields
   portfolio_overview?: {
     account_value: number;
     annual_return_percent: number;
@@ -89,6 +48,21 @@ export interface OutputNodeData {
     price: number;
     shares_to_buy: number;
   }>;
+  performance_metrics?: {
+    sharpe_ratio?: number;
+    sortino_ratio?: number;
+    max_drawdown?: number;
+    max_drawdown_date?: string;
+    long_short_ratio?: number;
+    gross_exposure?: number;
+    net_exposure?: number;
+  };
+  final_portfolio?: {
+    cash: number;
+    margin_used: number;
+    positions: Record<string, any>;
+  };
+  total_days?: number;
 }
 
 // Default agent node state

@@ -1,0 +1,55 @@
+name: Security Boundaries
+
+on:
+  pull_request:
+    paths:
+      - "app/backend/**"
+      - "app/frontend/**"
+      - "tests/backend/**"
+      - ".github/workflows/security-boundaries.yml"
+      - "pyproject.toml"
+      - "poetry.lock"
+  push:
+    branches:
+      - main
+      - "security/**"
+    paths:
+      - "app/backend/**"
+      - "app/frontend/**"
+      - "tests/backend/**"
+      - ".github/workflows/security-boundaries.yml"
+      - "pyproject.toml"
+      - "poetry.lock"
+
+jobs:
+  backend-security-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: snok/install-poetry@v1
+        with:
+          version: "1.8.3"
+      - name: Install dependencies
+        run: poetry install --with dev --no-interaction
+      - name: Run security-boundary tests
+        run: poetry run pytest -q tests/backend/test_security_boundaries.py
+
+  frontend-changed-files:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: app/frontend/package-lock.json
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Lint changed frontend modules
+        run: npx eslint src/services/api-keys-api.ts src/components/settings/api-keys.tsx --max-warnings 0

@@ -1,15 +1,6 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
-export interface ApiKey {
-  id: number;
-  provider: string;
-  key_value: string;
-  is_active: boolean;
-  description?: string;
-  created_at: string;
-  updated_at?: string;
-  last_used?: string;
-}
+export type ApiKey = ApiKeySummary;
 
 export interface ApiKeySummary {
   id: number;
@@ -55,18 +46,7 @@ class ApiKeysService {
     return response.json();
   }
 
-  async getApiKey(provider: string): Promise<ApiKey> {
-    const response = await fetch(`${this.baseUrl}/${encodeURIComponent(provider)}`);
-    if (!response.ok) {
-      if (response.status === 404) {
-        throw new Error('API key not found');
-      }
-      throw new Error(`Failed to fetch API key: ${response.statusText}`);
-    }
-    return response.json();
-  }
-
-  async createOrUpdateApiKey(request: ApiKeyCreateRequest): Promise<ApiKey> {
+  async createOrUpdateApiKey(request: ApiKeyCreateRequest): Promise<ApiKeySummary> {
     const response = await fetch(this.baseUrl, {
       method: 'POST',
       headers: {
@@ -126,7 +106,7 @@ class ApiKeysService {
     return response.json();
   }
 
-  async bulkUpdateApiKeys(request: ApiKeyBulkUpdateRequest): Promise<ApiKey[]> {
+  async bulkUpdateApiKeys(request: ApiKeyBulkUpdateRequest): Promise<ApiKeySummary[]> {
     const response = await fetch(`${this.baseUrl}/bulk`, {
       method: 'POST',
       headers: {

@@ -84,6 +84,7 @@ const LLM_API_KEYS: ApiKey[] = [
 
 export function ApiKeysSettings() {
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+  const [configuredKeys, setConfiguredKeys] = useState<Record<string, boolean>>({});
   const [visibleKeys, setVisibleKeys] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -98,19 +99,13 @@ export function ApiKeysSettings() {
       setLoading(true);
       setError(null);
       const apiKeysSummary = await apiKeysService.getAllApiKeys();
-      
-      // Load actual key values for existing keys
-      const keysData: Record<string, string> = {};
+      // Secret values are intentionally write-only and are never fetched back.
+      const configured: Record<string, boolean> = {};
       for (const summary of apiKeysSummary) {
-        try {
-          const fullKey = await apiKeysService.getApiKey(summary.provider);
-          keysData[summary.provider] = fullKey.key_value;
-        } catch (err) {
-          console.warn(`Failed to load key for ${summary.provider}:`, err);
-        }
+        configured[summary.provider] = summary.has_key;
       }
-      
-      setApiKeys(keysData);
+      setConfiguredKeys(configured);
+      setApiKeys({});
     } catch (err) {
       console.error('Failed to load API keys:', err);
       setError('Failed to load API keys. Please try again.');
@@ -119,30 +114,30 @@ export function ApiKeysSettings() {
     }
   };
 
-  const handleKeyChange = async (key: string, value: string) => {
-    // Update local state immediately for responsive UI
+  const handleKeyChange = (key: string, value: string) => {
     setApiKeys(prev => ({
       ...prev,
       [key]: value
     }));
+  };
 
-    // Auto-save with debouncing
+  const saveApiKey = async (key: string) => {
+    const value = apiKeys[key]?.trim();
+    if (!value) return;
+
     try {
-      if (value.trim()) {
-        await apiKeysService.createOrUpdateApiKey({
-          provider: key,
-          key_value: value.trim(),
-          is_active: true
-        });
-      } else {
-        // If value is empty, delete the key
-        try {
-          await apiKeysService.deleteApiKey(key);
-        } catch (err) {
-          // Key might not exist, which is fine
-          console.log(`Key ${key} not found for deletion, which is expected`);
-        }
-      }
+      await apiKeysService.createOrUpdateApiKey({
+        provider: key,
+        key_value: value,
+        is_active: true
+      });
+      setConfiguredKeys(prev => ({ ...prev, [key]: true }));
+      // Clear the secret from component state after the backend confirms save.
+      setApiKeys(prev => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
     } catch (err) {
       console.error(`Failed to save API key ${key}:`, err);
       setError(`Failed to save ${key}. Please try again.`);
@@ -164,6 +159,7 @@ export function ApiKeysSettings() {
         delete newKeys[key];
         return newKeys;
       });
+      setConfiguredKeys(prev => ({ ...prev, [key]: false }));
     } catch (err) {
       console.error(`Failed to delete API key ${key}:`, err);
       setError(`Failed to delete ${key}. Please try again.`);
@@ -191,13 +187,23 @@ export function ApiKeysSettings() {
             <div className="relative">
               <Input
                 type={visibleKeys[apiKey.key] ? 'text' : 'password'}
-                placeholder={apiKey.placeholder}
+                placeholder={configuredKeys[apiKey.key] ? 'Configured — enter a new key to replace' : apiKey.placeholder}
                 value={apiKeys[apiKey.key] || ''}
                 onChange={(e) => handleKeyChange(apiKey.key, e.target.value)}
                 className="pr-20"
               />
               <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                {apiKeys[apiKey.key] && (
+                {apiKeys[apiKey.key]?.trim() && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => saveApiKey(apiKey.key)}
+                  >
+                    Save
+                  </Button>
+                )}
+                {configuredKeys[apiKey.key] && (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -253,7 +259,7 @@ export function ApiKeysSettings() {
         <h2 className="text-xl font-semibold text-primary mb-2">API Keys</h2>
         <p className="text-sm text-muted-foreground">
           Configure API endpoints and authentication credentials for financial data and language models.
-          Changes are automatically saved.
+          Enter a new key and select Save. Existing secret values are never loaded back into the browser.
         </p>
       </div>
 
@@ -307,8 +313,7 @@ export function ApiKeysSettings() {
             <div className="space-y-1">
               <h4 className="text-sm font-medium text-amber-500">Security Note</h4>
               <p className="text-xs text-muted-foreground">
-                API keys are stored securely on your local system and changes are automatically saved. 
-                Keep your API keys secure and don't share them with others.
+                Secret values are write-only in the interface and are not returned by the API. The current database storage is not encrypted at rest; restrict access to the local database file and do not expose the backend directly to the internet.
               </p>
             </div>
           </div>
