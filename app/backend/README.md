@@ -58,7 +58,10 @@ sends it as an `Authorization: Bearer <token>` header.
 For remote deployments, keep the token in the backend or a trusted reverse proxy
 and have that proxy inject the Authorization header. **Never put this token in
 frontend code, a `VITE_*` variable, or a browser bundle.** Forwarded client-IP
-headers are not trusted by the middleware.
+headers are ignored unless the immediate socket peer is listed in
+`AI_HEDGE_FUND_TRUSTED_PROXY`. If a reverse proxy runs on the same host, list its
+exact IP, configure it to overwrite `X-Forwarded-For`, and have it inject the
+backend Bearer token. Restrict direct network access to the backend.
 
 API-key values are write-only through the settings interface and are never
 returned by API-key read endpoints. The current SQLite API-key column is not
