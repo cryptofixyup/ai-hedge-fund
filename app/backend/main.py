@@ -12,7 +12,7 @@ from app.backend.routes import api_router
 from app.backend.database.connection import engine
 from app.backend.database.models import Base
 from app.backend.services.ollama_service import ollama_service
-from app.backend.security import is_authorized_client
+from app.backend.security import is_authorized_client, is_private_vercel_service
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -20,8 +20,20 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="AI Hedge Fund API", description="Backend API for AI Hedge Fund", version="0.1.0")
 
-# Remote clients must authenticate with a backend-only token. Local development
-# remains available over loopback; forwarded headers are used only for configured trusted proxies.
+# Vercel Service Bindings provide the private service-to-service routing,
+# authentication, and TLS boundary. The API must not start in a Vercel
+# Preview/Production deployment unless this service is explicitly marked private.
+VERCEL_ENV = os.getenv("VERCEL_ENV", "").strip().lower()
+PRIVATE_VERCEL_API = is_private_vercel_service(
+    VERCEL_ENV,
+    os.getenv("AI_HEDGE_FUND_API_PRIVATE_SERVICE"),
+)
+if VERCEL_ENV in {"preview", "production"} and not PRIVATE_VERCEL_API:
+    raise RuntimeError(
+        "AI_HEDGE_FUND_API_PRIVATE_SERVICE=true is required for the Vercel API service"
+    )
+
+# Keep the existing token boundary available for non-Vercel remote deployments.
 API_ACCESS_TOKEN = os.getenv("AI_HEDGE_FUND_API_TOKEN", "").strip()
 if API_ACCESS_TOKEN and len(API_ACCESS_TOKEN) < 32:
     raise RuntimeError("AI_HEDGE_FUND_API_TOKEN must contain at least 32 characters")
@@ -34,6 +46,11 @@ TRUSTED_PROXY_HOSTS = {
 @app.middleware("http")
 async def restrict_remote_clients(request: Request, call_next):
     if request.method == "OPTIONS" or request.url.path in {"/", "/ping"}:
+        return await call_next(request)
+
+    # This branch is safe only when vercel.json exposes the API through a
+    # service binding and contains no public rewrite targeting the API service.
+    if PRIVATE_VERCEL_API:
         return await call_next(request)
 
     client_host = request.client.host if request.client else None

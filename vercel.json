@@ -1,0 +1,48 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "web": {
+      "root": "app/frontend",
+      "framework": "vite",
+      "installCommand": "env -u AI_HEDGE_FUND_OWNER_PASSWORD -u AI_HEDGE_FUND_SESSION_SECRET npm ci",
+      "buildCommand": "env -u AI_HEDGE_FUND_OWNER_PASSWORD -u AI_HEDGE_FUND_SESSION_SECRET npm run build"
+    },
+    "gateway": {
+      "root": "app/gateway",
+      "entrypoint": "server.ts",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "api",
+          "format": "url",
+          "env": "AI_HEDGE_FUND_API_URL"
+        }
+      ]
+    },
+    "api": {
+      "root": ".",
+      "framework": "fastapi",
+      "entrypoint": "main:app"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api",
+      "destination": {
+        "service": "gateway"
+      }
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": {
+        "service": "gateway"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "web"
+      }
+    }
+  ]
+}
