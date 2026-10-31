@@ -2,8 +2,11 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import os
+from dotenv import load_dotenv
 import logging
 import asyncio
+
+load_dotenv()
 
 from app.backend.routes import api_router
 from app.backend.database.connection import engine
