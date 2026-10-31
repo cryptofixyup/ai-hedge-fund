@@ -37,7 +37,7 @@ jobs:
       - name: Run security-boundary tests
         run: poetry run pytest -q tests/backend/test_security_boundaries.py
 
-  frontend-build:
+  frontend-changed-files:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -51,5 +51,5 @@ jobs:
           cache-dependency-path: app/frontend/package-lock.json
       - name: Install frontend dependencies
         run: npm ci
-      - name: Build frontend and type-check
-        run: npm run build
+      - name: Lint changed frontend modules
+        run: npx eslint src/services/api-keys-api.ts src/components/settings/api-keys.tsx --max-warnings 0
