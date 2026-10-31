@@ -67,3 +67,83 @@ def test_storage_accepts_simple_json_filename(tmp_path: Path):
 
 def test_api_key_summary_schema_never_exposes_secret_value():
     assert "key_value" not in ApiKeySummaryResponse.model_fields
+
+
+def _request_through_asgi(client_host: str, headers: dict[str, str] | None = None):
+    """Send a real HTTP request through the FastAPI ASGI middleware stack."""
+    import asyncio
+
+    import httpx
+
+    async def send_request():
+        transport = httpx.ASGITransport(
+            app=backend_main.app,
+            client=(client_host, 12345),
+        )
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+            follow_redirects=False,
+        ) as client:
+            return await client.get("/docs", headers=headers or {})
+
+    return asyncio.run(send_request())
+
+
+@pytest.fixture
+def backend_main_module(monkeypatch):
+    # Import the real application so the request traverses its registered middleware.
+    from app.backend import main as backend_main
+
+    monkeypatch.setattr(backend_main, "API_ACCESS_TOKEN", "t" * 32)
+    monkeypatch.setattr(backend_main, "TRUSTED_PROXY_HOSTS", set())
+    return backend_main
+
+
+def test_asgi_middleware_denies_remote_request_without_token(backend_main_module):
+    response = _request_through_asgi("198.51.100.24")
+    assert response.status_code == 403
+
+
+def test_asgi_middleware_accepts_remote_request_with_valid_token(backend_main_module):
+    response = _request_through_asgi(
+        "198.51.100.24",
+        {"Authorization": "Bearer " + "t" * 32},
+    )
+    assert response.status_code == 200
+
+
+def test_asgi_middleware_allows_loopback_without_token(backend_main_module):
+    response = _request_through_asgi("127.0.0.1")
+    assert response.status_code == 200
+
+
+def test_asgi_middleware_trusted_proxy_requires_token_for_remote_client(
+    backend_main_module, monkeypatch
+):
+    monkeypatch.setattr(backend_main_module, "TRUSTED_PROXY_HOSTS", {"127.0.0.1"})
+
+    denied = _request_through_asgi(
+        "127.0.0.1",
+        {"X-Forwarded-For": "198.51.100.24"},
+    )
+    assert denied.status_code == 403
+
+    allowed = _request_through_asgi(
+        "127.0.0.1",
+        {
+            "X-Forwarded-For": "198.51.100.24",
+            "Authorization": "Bearer " + "t" * 32,
+        },
+    )
+    assert allowed.status_code == 200
+
+
+def test_asgi_middleware_ignores_forwarded_header_from_untrusted_peer(
+    backend_main_module
+):
+    response = _request_through_asgi(
+        "198.51.100.24",
+        {"X-Forwarded-For": "127.0.0.1"},
+    )
+    assert response.status_code == 403
