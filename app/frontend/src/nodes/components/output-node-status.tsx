@@ -46,6 +46,7 @@ export function OutputNodeStatus({
 
   return (
     <div 
+      data-connected={isConnected}
       className={cn(
         "text-foreground text-xs rounded p-2 border border-status transition-colors",
         hasGradientAnimation ? "gradient-animation" : getStatusColor(status),
