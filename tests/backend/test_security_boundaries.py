@@ -69,7 +69,7 @@ def test_api_key_summary_schema_never_exposes_secret_value():
     assert "key_value" not in ApiKeySummaryResponse.model_fields
 
 
-def _request_through_asgi(client_host: str, headers: dict[str, str] | None = None):
+def _request_through_asgi(backend_main, client_host: str, headers: dict[str, str] | None = None):
     """Send a real HTTP request through the FastAPI ASGI middleware stack."""
     import asyncio
 
@@ -101,12 +101,13 @@ def backend_main_module(monkeypatch):
 
 
 def test_asgi_middleware_denies_remote_request_without_token(backend_main_module):
-    response = _request_through_asgi("198.51.100.24")
+    response = _request_through_asgi(backend_main_module, "198.51.100.24")
     assert response.status_code == 403
 
 
 def test_asgi_middleware_accepts_remote_request_with_valid_token(backend_main_module):
     response = _request_through_asgi(
+        backend_main_module,
         "198.51.100.24",
         {"Authorization": "Bearer " + "t" * 32},
     )
@@ -114,7 +115,7 @@ def test_asgi_middleware_accepts_remote_request_with_valid_token(backend_main_mo
 
 
 def test_asgi_middleware_allows_loopback_without_token(backend_main_module):
-    response = _request_through_asgi("127.0.0.1")
+    response = _request_through_asgi(backend_main_module, "127.0.0.1")
     assert response.status_code == 200
 
 
@@ -124,12 +125,14 @@ def test_asgi_middleware_trusted_proxy_requires_token_for_remote_client(
     monkeypatch.setattr(backend_main_module, "TRUSTED_PROXY_HOSTS", {"127.0.0.1"})
 
     denied = _request_through_asgi(
+        backend_main_module,
         "127.0.0.1",
         {"X-Forwarded-For": "198.51.100.24"},
     )
     assert denied.status_code == 403
 
     allowed = _request_through_asgi(
+        backend_main_module,
         "127.0.0.1",
         {
             "X-Forwarded-For": "198.51.100.24",
@@ -143,6 +146,7 @@ def test_asgi_middleware_ignores_forwarded_header_from_untrusted_peer(
     backend_main_module
 ):
     response = _request_through_asgi(
+        backend_main_module,
         "198.51.100.24",
         {"X-Forwarded-For": "127.0.0.1"},
     )
