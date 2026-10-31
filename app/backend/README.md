@@ -48,6 +48,26 @@ GROQ_API_KEY=your-groq-api-key
 FINANCIAL_DATASETS_API_KEY=your-financial-datasets-api-key
 ```
 
+## Security and network exposure
+
+The backend is local-first. Requests from loopback addresses are allowed for local
+development. Requests from non-loopback clients are denied unless the backend is
+configured with `AI_HEDGE_FUND_API_TOKEN` (minimum 32 characters) and the caller
+sends it as an `Authorization: Bearer <token>` header.
+
+For remote deployments, keep the token in the backend or a trusted reverse proxy
+and have that proxy inject the Authorization header. **Never put this token in
+frontend code, a `VITE_*` variable, or a browser bundle.** Forwarded client-IP
+headers are not trusted by the middleware.
+
+API-key values are write-only through the settings interface and are never
+returned by API-key read endpoints. The current SQLite API-key column is not
+encrypted at rest; protect the database file and backups. Encryption-at-rest
+migration remains a separate required production-hardening task.
+
+The JSON storage endpoint accepts only simple `.json` filenames and rejects
+path components.
+
 ## Running the Server
 
 To run the development server:
