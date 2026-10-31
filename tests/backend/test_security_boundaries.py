@@ -27,6 +27,20 @@ def test_loopback_clients_do_not_require_remote_token():
     assert is_authorized_client("127.0.0.1", None, None)
 
 
+def test_trusted_local_proxy_uses_forwarded_client_address():
+    trusted = {"127.0.0.1"}
+    assert not is_authorized_client(
+        "127.0.0.1", None, None, "198.51.100.24", trusted
+    )
+    assert is_authorized_client(
+        "127.0.0.1", "Bearer " + "x" * 32, "x" * 32,
+        "198.51.100.24", trusted,
+    )
+    assert not is_authorized_client(
+        "127.0.0.1", None, None, None, trusted
+    )
+
+
 @pytest.mark.parametrize(
     "filename",
     [
