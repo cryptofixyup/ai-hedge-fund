@@ -3,7 +3,11 @@ from pathlib import Path
 import pytest
 from fastapi import HTTPException
 
-from app.backend.security import is_authorized_client, is_loopback_client
+from app.backend.security import (
+    is_authorized_client,
+    is_loopback_client,
+    is_private_vercel_service,
+)
 from app.backend.routes.storage import resolve_output_file
 from app.backend.models.schemas import ApiKeySummaryResponse
 
@@ -39,6 +43,14 @@ def test_trusted_local_proxy_uses_forwarded_client_address():
     assert not is_authorized_client(
         "127.0.0.1", None, None, None, trusted
     )
+
+
+def test_private_vercel_service_requires_preview_or_production_and_explicit_flag():
+    assert is_private_vercel_service("preview", "true")
+    assert is_private_vercel_service("production", "TRUE")
+    assert not is_private_vercel_service("development", "true")
+    assert not is_private_vercel_service("preview", "false")
+    assert not is_private_vercel_service(None, "true")
 
 
 @pytest.mark.parametrize(
@@ -97,6 +109,7 @@ def backend_main_module(monkeypatch):
 
     monkeypatch.setattr(backend_main, "API_ACCESS_TOKEN", "t" * 32)
     monkeypatch.setattr(backend_main, "TRUSTED_PROXY_HOSTS", set())
+    monkeypatch.setattr(backend_main, "PRIVATE_VERCEL_API", False)
     return backend_main
 
 
@@ -116,6 +129,14 @@ def test_asgi_middleware_accepts_remote_request_with_valid_token(backend_main_mo
 
 def test_asgi_middleware_allows_loopback_without_token(backend_main_module):
     response = _request_through_asgi(backend_main_module, "127.0.0.1")
+    assert response.status_code == 200
+
+
+def test_asgi_middleware_allows_remote_request_only_when_vercel_service_is_private(
+    backend_main_module, monkeypatch
+):
+    monkeypatch.setattr(backend_main_module, "PRIVATE_VERCEL_API", True)
+    response = _request_through_asgi(backend_main_module, "198.51.100.24")
     assert response.status_code == 200
 
 
