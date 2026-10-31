@@ -18,6 +18,14 @@ def is_loopback_client(host: str | None) -> bool:
     return _is_ip_address_loopback(host)
 
 
+def is_private_vercel_service(vercel_env: str | None, private_service_flag: str | None) -> bool:
+    """Recognize only an explicitly marked Vercel Preview/Production API service."""
+    return (
+        (vercel_env or "").strip().lower() in {"preview", "production"}
+        and (private_service_flag or "").strip().lower() == "true"
+    )
+
+
 def is_authorized_client(
     client_host: str | None,
     authorization_header: str | None,
