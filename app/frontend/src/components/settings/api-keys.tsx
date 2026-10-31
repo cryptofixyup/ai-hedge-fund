@@ -121,7 +121,7 @@ export function ApiKeysSettings() {
     }));
   };
 
-  const handleKeyBlur = async (key: string) => {
+  const saveApiKey = async (key: string) => {
     const value = apiKeys[key]?.trim();
     if (!value) return;
 
@@ -190,10 +190,19 @@ export function ApiKeysSettings() {
                 placeholder={configuredKeys[apiKey.key] ? 'Configured — enter a new key to replace' : apiKey.placeholder}
                 value={apiKeys[apiKey.key] || ''}
                 onChange={(e) => handleKeyChange(apiKey.key, e.target.value)}
-                onBlur={() => handleKeyBlur(apiKey.key)}
                 className="pr-20"
               />
               <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                {apiKeys[apiKey.key]?.trim() && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => saveApiKey(apiKey.key)}
+                  >
+                    Save
+                  </Button>
+                )}
                 {configuredKeys[apiKey.key] && (
                   <Button
                     variant="ghost"
@@ -250,7 +259,7 @@ export function ApiKeysSettings() {
         <h2 className="text-xl font-semibold text-primary mb-2">API Keys</h2>
         <p className="text-sm text-muted-foreground">
           Configure API endpoints and authentication credentials for financial data and language models.
-          Changes are automatically saved.
+          Enter a new key and select Save. Existing secret values are never loaded back into the browser.
         </p>
       </div>
 
