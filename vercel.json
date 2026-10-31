@@ -1,0 +1,47 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "web": {
+      "root": "app/frontend",
+      "framework": "vite"
+    },
+    "gateway": {
+      "root": "app/gateway",
+      "framework": "node",
+      "entrypoint": "server.ts",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "api",
+          "format": "url",
+          "env": "AI_HEDGE_FUND_API_URL"
+        }
+      ]
+    },
+    "api": {
+      "root": ".",
+      "framework": "fastapi",
+      "entrypoint": "main:app"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api",
+      "destination": {
+        "service": "gateway"
+      }
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": {
+        "service": "gateway"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "web"
+      }
+    }
+  ]
+}
