@@ -8,7 +8,10 @@ const env = {
   AI_HEDGE_FUND_SESSION_SECRET: 'session-secret-'.padEnd(40, 's'),
   AI_HEDGE_FUND_API_URL: 'https://private-api.internal.example',
 };
-const origin = 'https://hedge.example.test';
+
+function originFor(baseUrl) {
+  return 'https://' + new URL(baseUrl).host;
+}
 
 async function withServer(options, callback) {
   const server = createGatewayServer(options);
@@ -24,13 +27,12 @@ async function withServer(options, callback) {
   }
 }
 
-async function login(baseUrl) {
+async function login(baseUrl, origin = originFor(baseUrl)) {
   return fetch(baseUrl + '/api/auth/login', {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
       origin,
-      host: 'hedge.example.test',
     },
     body: JSON.stringify({ password: env.AI_HEDGE_FUND_OWNER_PASSWORD }),
   });
@@ -39,7 +41,7 @@ async function login(baseUrl) {
 test('gateway fails closed when required secrets or service binding are missing', () => {
   assert.throws(() => createGatewayServer({ env: {} }), /AI_HEDGE_FUND_OWNER_PASSWORD/);
   assert.throws(() => createGatewayServer({ env: { ...env, AI_HEDGE_FUND_API_URL: '' } }), /AI_HEDGE_FUND_API_URL/);
-  assert.throws(() => createGatewayServer({ env: { ...env, AI_HEDGE_FUND_API_URL: 'javascript:alert(1)' } }), /HTTP\\(S\\) URL/);
+  assert.throws(() => createGatewayServer({ env: { ...env, AI_HEDGE_FUND_API_URL: 'javascript:alert(1)' } }), /HTTP\(S\) URL/);
 });
 
 test('unauthenticated API requests are denied before upstream is called', async () => {
@@ -57,23 +59,14 @@ test('unauthenticated API requests are denied before upstream is called', async 
 
 test('login rejects cross-origin attempts and incorrect passwords', async () => {
   await withServer({ env }, async baseUrl => {
-    const crossOrigin = await fetch(baseUrl + '/api/auth/login', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        origin: 'https://attacker.example',
-        host: 'hedge.example.test',
-      },
-      body: JSON.stringify({ password: env.AI_HEDGE_FUND_OWNER_PASSWORD }),
-    });
+    const crossOrigin = await login(baseUrl, 'https://attacker.example');
     assert.equal(crossOrigin.status, 403);
 
     const wrongPassword = await fetch(baseUrl + '/api/auth/login', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        origin,
-        host: 'hedge.example.test',
+        origin: originFor(baseUrl),
       },
       body: JSON.stringify({ password: 'wrong-password'.padEnd(40, '!') }),
     });
@@ -101,8 +94,7 @@ test('valid login sets a Secure HttpOnly Strict cookie and logout clears it', as
       method: 'POST',
       headers: {
         cookie: token,
-        origin,
-        host: 'hedge.example.test',
+        origin: originFor(baseUrl),
       },
     });
     assert.equal(logout.status, 204);
@@ -128,8 +120,7 @@ test('authenticated requests preserve API route and SSE response without forward
       method: 'POST',
       headers: {
         cookie,
-        origin,
-        host: 'hedge.example.test',
+        origin: originFor(baseUrl),
         'content-type': 'application/json',
         authorization: 'Bearer attacker-controlled-value',
       },
