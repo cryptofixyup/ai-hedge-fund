@@ -1,0 +1,31 @@
+name: Gateway Security
+
+on:
+  pull_request:
+    paths:
+      - "app/gateway/**"
+      - "vercel.json"
+      - ".github/workflows/gateway-security.yml"
+  push:
+    branches:
+      - "feat/**"
+      - "security/**"
+    paths:
+      - "app/gateway/**"
+      - "vercel.json"
+      - ".github/workflows/gateway-security.yml"
+
+jobs:
+  gateway-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Syntax-check gateway
+        run: node --check app/gateway/gateway.mjs
+      - name: Test gateway security boundaries
+        run: node --test app/gateway/test/*.test.mjs
+      - name: Validate Vercel service configuration
+        run: node -e "JSON.parse(require('node:fs').readFileSync('vercel.json', 'utf8'))"
