@@ -6,7 +6,6 @@ import { createGatewayServer, SESSION_COOKIE, SESSION_TTL_SECONDS } from '../gat
 const env = {
   AI_HEDGE_FUND_OWNER_PASSWORD: 'owner-password-'.padEnd(40, 'x'),
   AI_HEDGE_FUND_SESSION_SECRET: 'session-secret-'.padEnd(40, 's'),
-  AI_HEDGE_FUND_API_TOKEN: 'backend-token-'.padEnd(40, 't'),
   AI_HEDGE_FUND_API_URL: 'https://private-api.internal.example',
 };
 const origin = 'https://hedge.example.test';
@@ -32,8 +31,6 @@ async function login(baseUrl) {
       'content-type': 'application/json',
       origin,
       host: 'hedge.example.test',
-      'x-forwarded-host': 'hedge.example.test',
-      'x-forwarded-proto': 'https',
     },
     body: JSON.stringify({ password: env.AI_HEDGE_FUND_OWNER_PASSWORD }),
   });
@@ -66,8 +63,6 @@ test('login rejects cross-origin attempts and incorrect passwords', async () => 
         'content-type': 'application/json',
         origin: 'https://attacker.example',
         host: 'hedge.example.test',
-        'x-forwarded-host': 'hedge.example.test',
-        'x-forwarded-proto': 'https',
       },
       body: JSON.stringify({ password: env.AI_HEDGE_FUND_OWNER_PASSWORD }),
     });
@@ -79,8 +74,6 @@ test('login rejects cross-origin attempts and incorrect passwords', async () => 
         'content-type': 'application/json',
         origin,
         host: 'hedge.example.test',
-        'x-forwarded-host': 'hedge.example.test',
-        'x-forwarded-proto': 'https',
       },
       body: JSON.stringify({ password: 'wrong-password'.padEnd(40, '!') }),
     });
@@ -110,8 +103,6 @@ test('valid login sets a Secure HttpOnly Strict cookie and logout clears it', as
         cookie: token,
         origin,
         host: 'hedge.example.test',
-        'x-forwarded-host': 'hedge.example.test',
-        'x-forwarded-proto': 'https',
       },
     });
     assert.equal(logout.status, 204);
@@ -119,13 +110,13 @@ test('valid login sets a Secure HttpOnly Strict cookie and logout clears it', as
   });
 });
 
-test('authenticated requests preserve API route and SSE response while injecting backend token', async () => {
+test('authenticated requests preserve API route and SSE response without forwarding credentials', async () => {
   let captured;
   await withServer({
     env,
     fetchImpl: async (url, init) => {
       captured = { url: String(url), init };
-      return new Response('event: complete\\ndata: {"ok":true}\\n\\n', {
+      return new Response('event: complete\ndata: {"ok":true}\n\n', {
         status: 200,
         headers: { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' },
       });
@@ -139,8 +130,6 @@ test('authenticated requests preserve API route and SSE response while injecting
         cookie,
         origin,
         host: 'hedge.example.test',
-        'x-forwarded-host': 'hedge.example.test',
-        'x-forwarded-proto': 'https',
         'content-type': 'application/json',
         authorization: 'Bearer attacker-controlled-value',
       },
@@ -151,7 +140,7 @@ test('authenticated requests preserve API route and SSE response while injecting
     assert.equal(response.headers.get('content-type'), 'text/event-stream');
     assert.match(await response.text(), /event: complete/);
     assert.equal(captured.url, 'https://private-api.internal.example/hedge-fund/run?trace=1');
-    assert.equal(captured.init.headers.get('authorization'), 'Bearer ' + env.AI_HEDGE_FUND_API_TOKEN);
+    assert.equal(captured.init.headers.get('authorization'), null);
     assert.equal(captured.init.headers.get('cookie'), null);
     assert.equal(captured.init.headers.get('x-forwarded-for'), null);
     assert.equal(captured.init.method, 'POST');
