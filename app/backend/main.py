@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(title="AI Hedge Fund API", description="Backend API for AI Hedge Fund", version="0.1.0")
 
 # Remote clients must authenticate with a backend-only token. Local development
-# remains available over loopback; forwarded client-IP headers are not trusted.
+# remains available over loopback; forwarded headers are used only for configured trusted proxies.
 API_ACCESS_TOKEN = os.getenv("AI_HEDGE_FUND_API_TOKEN", "").strip()
 if API_ACCESS_TOKEN and len(API_ACCESS_TOKEN) < 32:
     raise RuntimeError("AI_HEDGE_FUND_API_TOKEN must contain at least 32 characters")
