@@ -158,7 +158,7 @@ async def deactivate_api_key(provider: str, db: Session = Depends(get_db)):
 
 @router.post(
     "/bulk",
-    response_model=List[ApiKeyResponse],
+    response_model=List[ApiKeySummaryResponse],
     responses={
         400: {"model": ErrorResponse, "description": "Invalid request"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
