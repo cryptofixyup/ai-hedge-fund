@@ -114,23 +114,30 @@ export function ApiKeysSettings() {
     }
   };
 
-  const handleKeyChange = async (key: string, value: string) => {
-    // Update local state immediately for responsive UI
+  const handleKeyChange = (key: string, value: string) => {
     setApiKeys(prev => ({
       ...prev,
       [key]: value
     }));
+  };
 
-    // Auto-save with debouncing
+  const handleKeyBlur = async (key: string) => {
+    const value = apiKeys[key]?.trim();
+    if (!value) return;
+
     try {
-      if (value.trim()) {
-        await apiKeysService.createOrUpdateApiKey({
-          provider: key,
-          key_value: value.trim(),
-          is_active: true
-        });
-        setConfiguredKeys(prev => ({ ...prev, [key]: true }));
-      }
+      await apiKeysService.createOrUpdateApiKey({
+        provider: key,
+        key_value: value,
+        is_active: true
+      });
+      setConfiguredKeys(prev => ({ ...prev, [key]: true }));
+      // Clear the secret from component state after the backend confirms save.
+      setApiKeys(prev => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
     } catch (err) {
       console.error(`Failed to save API key ${key}:`, err);
       setError(`Failed to save ${key}. Please try again.`);
@@ -183,6 +190,7 @@ export function ApiKeysSettings() {
                 placeholder={configuredKeys[apiKey.key] ? 'Configured — enter a new key to replace' : apiKey.placeholder}
                 value={apiKeys[apiKey.key] || ''}
                 onChange={(e) => handleKeyChange(apiKey.key, e.target.value)}
+                onBlur={() => handleKeyBlur(apiKey.key)}
                 className="pr-20"
               />
               <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
