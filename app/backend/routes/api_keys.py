@@ -7,7 +7,6 @@ from app.backend.repositories.api_key_repository import ApiKeyRepository
 from app.backend.models.schemas import (
     ApiKeyCreateRequest,
     ApiKeyUpdateRequest,
-    ApiKeyResponse,
     ApiKeySummaryResponse,
     ApiKeyBulkUpdateRequest,
     ErrorResponse
@@ -18,14 +17,14 @@ router = APIRouter(prefix="/api-keys", tags=["api-keys"])
 
 @router.post(
     "/",
-    response_model=ApiKeyResponse,
+    response_model=ApiKeySummaryResponse,
     responses={
         400: {"model": ErrorResponse, "description": "Invalid request"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
 async def create_or_update_api_key(request: ApiKeyCreateRequest, db: Session = Depends(get_db)):
-    """Create a new API key or update existing one"""
+    """Create or replace a provider key; return metadata only."""
     try:
         repo = ApiKeyRepository(db)
         api_key = repo.create_or_update_api_key(
@@ -34,7 +33,7 @@ async def create_or_update_api_key(request: ApiKeyCreateRequest, db: Session = D
             description=request.description,
             is_active=request.is_active
         )
-        return ApiKeyResponse.from_orm(api_key)
+        return ApiKeySummaryResponse.from_orm(api_key)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create/update API key: {str(e)}")
 
@@ -65,7 +64,7 @@ async def get_api_keys(include_inactive: bool = False, db: Session = Depends(get
     },
 )
 async def get_api_key(provider: str, db: Session = Depends(get_db)):
-    """Get a specific API key by provider"""
+    """Get metadata for a provider key; never disclose the stored secret."""
     try:
         repo = ApiKeyRepository(db)
         api_key = repo.get_api_key_by_provider(provider)
@@ -87,7 +86,7 @@ async def get_api_key(provider: str, db: Session = Depends(get_db)):
     },
 )
 async def update_api_key(provider: str, request: ApiKeyUpdateRequest, db: Session = Depends(get_db)):
-    """Update an existing API key"""
+    """Update a provider key; return metadata only."""
     try:
         repo = ApiKeyRepository(db)
         api_key = repo.update_api_key(
@@ -161,7 +160,7 @@ async def deactivate_api_key(provider: str, db: Session = Depends(get_db)):
     },
 )
 async def bulk_update_api_keys(request: ApiKeyBulkUpdateRequest, db: Session = Depends(get_db)):
-    """Bulk create or update multiple API keys"""
+    """Bulk create or update provider keys; return metadata only."""
     try:
         repo = ApiKeyRepository(db)
         api_keys_data = [
