@@ -25,6 +25,11 @@ app = FastAPI(title="AI Hedge Fund API", description="Backend API for AI Hedge F
 API_ACCESS_TOKEN = os.getenv("AI_HEDGE_FUND_API_TOKEN", "").strip()
 if API_ACCESS_TOKEN and len(API_ACCESS_TOKEN) < 32:
     raise RuntimeError("AI_HEDGE_FUND_API_TOKEN must contain at least 32 characters")
+TRUSTED_PROXY_HOSTS = {
+    host.strip()
+    for host in os.getenv("AI_HEDGE_FUND_TRUSTED_PROXY", "").split(",")
+    if host.strip()
+}
 
 @app.middleware("http")
 async def restrict_remote_clients(request: Request, call_next):
@@ -36,6 +41,8 @@ async def restrict_remote_clients(request: Request, call_next):
         client_host,
         request.headers.get("authorization"),
         API_ACCESS_TOKEN or None,
+        request.headers.get("x-forwarded-for"),
+        TRUSTED_PROXY_HOSTS,
     ):
         return JSONResponse(
             status_code=403,
