@@ -28,7 +28,6 @@ function requiredSecret(value, name) {
 function loadConfig(env) {
   const ownerPassword = requiredSecret(env.AI_HEDGE_FUND_OWNER_PASSWORD, 'AI_HEDGE_FUND_OWNER_PASSWORD');
   const sessionSecret = requiredSecret(env.AI_HEDGE_FUND_SESSION_SECRET, 'AI_HEDGE_FUND_SESSION_SECRET');
-  const apiToken = requiredSecret(env.AI_HEDGE_FUND_API_TOKEN, 'AI_HEDGE_FUND_API_TOKEN');
   if (!env.AI_HEDGE_FUND_API_URL) {
     throw new Error('AI_HEDGE_FUND_API_URL service binding is missing');
   }
@@ -42,7 +41,7 @@ function loadConfig(env) {
   if (!['https:', 'http:'].includes(apiUrl.protocol) || apiUrl.username || apiUrl.password) {
     throw new Error('AI_HEDGE_FUND_API_URL must be an HTTP(S) URL without embedded credentials');
   }
-  return { ownerPassword, sessionSecret, apiToken, apiUrl };
+  return { ownerPassword, sessionSecret, apiUrl };
 }
 
 function equalSecret(left, right) {
@@ -100,16 +99,11 @@ function cookieHeader(value, maxAge) {
 }
 
 function isSameOrigin(req) {
-  if (!req.headers.origin) return false;
+  if (!req.headers.origin || !req.headers.host) return false;
   try {
     const origin = new URL(req.headers.origin);
-    const forwardedHost = req.headers['x-forwarded-host'];
-    const requestHost = String(forwardedHost || req.headers.host || '')
-      .split(',')[0].trim().toLowerCase();
-    const forwardedProto = req.headers['x-forwarded-proto'];
-    const protocol = String(forwardedProto || (req.socket.encrypted ? 'https' : 'http'))
-      .split(',')[0].trim().toLowerCase() + ':';
-    return origin.host.toLowerCase() === requestHost && origin.protocol === protocol;
+    return origin.protocol === 'https:'
+      && origin.host.toLowerCase() === String(req.headers.host).toLowerCase();
   } catch {
     return false;
   }
@@ -151,13 +145,12 @@ function isAuthenticated(req, secret) {
   return verifySession(readCookie(req.headers.cookie, SESSION_COOKIE), secret);
 }
 
-function requestHeadersForBackend(req, apiToken) {
+function requestHeadersForBackend(req) {
   const headers = new Headers();
   for (const [name, value] of Object.entries(req.headers)) {
     if (REQUEST_HEADERS_TO_DROP.has(name.toLowerCase()) || value === undefined) continue;
     headers.set(name, Array.isArray(value) ? value.join(', ') : String(value));
   }
-  headers.set('authorization', 'Bearer ' + apiToken);
   return headers;
 }
 
@@ -178,7 +171,7 @@ async function proxyToBackend(req, res, requestUrl, config, fetchImpl) {
 
   const upstream = await fetchImpl(upstreamUrl, {
     method,
-    headers: requestHeadersForBackend(req, config.apiToken),
+    headers: requestHeadersForBackend(req),
     body,
     redirect: 'manual',
     signal: controller.signal,
