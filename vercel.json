@@ -3,11 +3,12 @@
   "services": {
     "web": {
       "root": "app/frontend",
-      "framework": "vite"
+      "framework": "vite",
+      "installCommand": "env -u AI_HEDGE_FUND_OWNER_PASSWORD -u AI_HEDGE_FUND_SESSION_SECRET npm ci",
+      "buildCommand": "env -u AI_HEDGE_FUND_OWNER_PASSWORD -u AI_HEDGE_FUND_SESSION_SECRET npm run build"
     },
     "gateway": {
       "root": "app/gateway",
-      "framework": "node",
       "entrypoint": "server.ts",
       "bindings": [
         {
