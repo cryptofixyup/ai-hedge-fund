@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "app/backend/**"
+      - "app/frontend/**"
       - "tests/backend/**"
       - ".github/workflows/security-boundaries.yml"
       - "pyproject.toml"
@@ -14,6 +15,7 @@ on:
       - "security/**"
     paths:
       - "app/backend/**"
+      - "app/frontend/**"
       - "tests/backend/**"
       - ".github/workflows/security-boundaries.yml"
       - "pyproject.toml"
@@ -34,3 +36,20 @@ jobs:
         run: poetry install --with dev --no-interaction
       - name: Run security-boundary tests
         run: poetry run pytest -q tests/backend/test_security_boundaries.py
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: app/frontend/package-lock.json
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Build frontend and type-check
+        run: npm run build
