@@ -34,8 +34,8 @@ async def create_or_update_api_key(request: ApiKeyCreateRequest, db: Session = D
             is_active=request.is_active
         )
         return ApiKeySummaryResponse.from_orm(api_key)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create/update API key: {str(e)}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to create/update API key")
 
 
 @router.get(
@@ -51,8 +51,8 @@ async def get_api_keys(include_inactive: bool = False, db: Session = Depends(get
         repo = ApiKeyRepository(db)
         api_keys = repo.get_all_api_keys(include_inactive=include_inactive)
         return [ApiKeySummaryResponse.from_orm(key) for key in api_keys]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve API keys: {str(e)}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to retrieve API keys")
 
 
 @router.get(
@@ -73,8 +73,8 @@ async def get_api_key(provider: str, db: Session = Depends(get_db)):
         return ApiKeySummaryResponse.from_orm(api_key)
     except HTTPException:
         raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve API key: {str(e)}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to retrieve API key")
 
 
 @router.put(
@@ -100,8 +100,8 @@ async def update_api_key(provider: str, request: ApiKeyUpdateRequest, db: Sessio
         return ApiKeySummaryResponse.from_orm(api_key)
     except HTTPException:
         raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update API key: {str(e)}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to update API key")
 
 
 @router.delete(
@@ -122,8 +122,8 @@ async def delete_api_key(provider: str, db: Session = Depends(get_db)):
         return {"message": "API key deleted successfully"}
     except HTTPException:
         raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to delete API key: {str(e)}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to delete API key")
 
 
 @router.patch(
@@ -152,8 +152,8 @@ async def deactivate_api_key(provider: str, db: Session = Depends(get_db)):
         return ApiKeySummaryResponse.from_orm(api_key)
     except HTTPException:
         raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to deactivate API key: {str(e)}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to deactivate API key")
 
 
 @router.post(
@@ -179,8 +179,8 @@ async def bulk_update_api_keys(request: ApiKeyBulkUpdateRequest, db: Session = D
         ]
         api_keys = repo.bulk_create_or_update(api_keys_data)
         return [ApiKeySummaryResponse.from_orm(key) for key in api_keys]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to bulk update API keys: {str(e)}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to bulk update API keys")
 
 
 @router.patch(
@@ -201,5 +201,5 @@ async def update_last_used(provider: str, db: Session = Depends(get_db)):
         return {"message": "Last used timestamp updated"}
     except HTTPException:
         raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update last used timestamp: {str(e)}") 
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to update last used timestamp") 
